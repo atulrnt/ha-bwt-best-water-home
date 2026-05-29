@@ -33,7 +33,7 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
             ]}}}},
             {"data": {"water": {"measurementUnit": "Litre", "dataPoints": [{"date": "2026-05-27T22:00:00.000Z", "value": 41}]}, "salt": {"measurementUnit": "Gram", "dataPoints": [{"date": "2026-05-27T22:00:00.000Z", "value": 0}]}}},
         ])
-        client = BwtBestWaterHomeClient("access-token", transport=transport)
+        client = BwtBestWaterHomeClient("Bearer access-token", transport=transport)
 
         customer_id = await client.get_customer_id()
         products = await client.get_products(customer_id)
@@ -45,6 +45,7 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(products[0].shadow_type, "SkylineShadow")
         self.assertEqual(stats.water_unit, "Litre")
         self.assertEqual(stats.water_points[0].value, 41)
+        self.assertEqual(transport.calls[0][2]["authorization"], "Bearer access-token")
         self.assertEqual(transport.calls[1][2]["ctx-current-customer-id"], "cust-1")
         self.assertEqual(transport.calls[2][1]["variables"]["format"], "Day")
 

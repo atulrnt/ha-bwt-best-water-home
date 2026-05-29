@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import logging
+
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_ACCESS_TOKEN
 from homeassistant.core import callback
 
-from .api import BwtAuthError, BwtBestWaterHomeClient, UrllibTransport
+from .api import BwtApiError, BwtAuthError, BwtBestWaterHomeClient, ExecutorTransport
 from .const import DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN, NAME
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -17,13 +22,18 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             token = user_input[CONF_ACCESS_TOKEN].strip()
-            client = BwtBestWaterHomeClient(token, transport=UrllibTransport())
+            client = BwtBestWaterHomeClient(token, transport=ExecutorTransport(self.hass))
             try:
                 customer_id = await client.get_customer_id()
                 products = await client.get_products(customer_id)
-            except BwtAuthError:
+            except BwtAuthError as exc:
+                _LOGGER.warning("BWT Best Water Home authentication failed: %s", exc)
                 errors["base"] = "auth"
+            except BwtApiError as exc:
+                _LOGGER.warning("BWT Best Water Home API request failed: %s", exc)
+                errors["base"] = "cannot_connect"
             except Exception:
+                _LOGGER.exception("Unexpected BWT Best Water Home config flow failure")
                 errors["base"] = "cannot_connect"
             else:
                 product = next((p for p in products if p.shadow_type == "SkylineShadow"), products[0] if products else None)
