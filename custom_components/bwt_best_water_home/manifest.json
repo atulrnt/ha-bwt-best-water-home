@@ -4,9 +4,9 @@
   "codeowners": [],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/atu/bwt-best-water-home",
+  "documentation": "https://github.com/atulrnt/ha-bwt-best-water-home",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/atu/bwt-best-water-home/issues",
+  "issue_tracker": "https://github.com/atulrnt/ha-bwt-best-water-home/issues",
   "requirements": [],
   "version": "0.1.0"
 }
