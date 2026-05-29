@@ -69,6 +69,8 @@ class UrllibTransport:
                 parsed = json.loads(body)
             except json.JSONDecodeError:
                 parsed = {"message": body}
+            if exc.code in (401, 403):
+                raise BwtAuthError(f"BWT HTTP {exc.code}: {parsed}") from exc
             raise BwtApiError(f"BWT HTTP {exc.code}: {parsed}") from exc
 
     async def post_json(self, url: str, payload: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
@@ -76,9 +78,20 @@ class UrllibTransport:
         return self.post_json_sync(url, payload, headers)
 
 
+class ExecutorTransport:
+    """Run the stdlib HTTP transport in Home Assistant's executor."""
+
+    def __init__(self, hass: Any) -> None:
+        self.hass = hass
+        self._sync = UrllibTransport()
+
+    async def post_json(self, url: str, payload: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
+        return await self.hass.async_add_executor_job(self._sync.post_json_sync, url, payload, headers)
+
+
 class BwtBestWaterHomeClient:
     def __init__(self, access_token: str, *, transport: BwtTransport | None = None, app_version: str = APP_VERSION) -> None:
-        self.access_token = access_token
+        self.access_token = _normalize_access_token(access_token)
         self.transport = transport or UrllibTransport()
         self.app_version = app_version
 
@@ -197,3 +210,10 @@ def _parse_points(points: list[dict[str, Any]]) -> list[BwtDataPoint]:
             raw_date = raw_date[:-1] + "+00:00"
         parsed.append(BwtDataPoint(date=dt.datetime.fromisoformat(raw_date), value=float(point["value"])))
     return parsed
+
+
+def _normalize_access_token(access_token: str) -> str:
+    token = access_token.strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    return token

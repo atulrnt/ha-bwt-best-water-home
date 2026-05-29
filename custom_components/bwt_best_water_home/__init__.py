@@ -4,7 +4,7 @@ import asyncio
 import datetime as dt
 from typing import TYPE_CHECKING
 
-from .api import BwtBestWaterHomeClient, UrllibTransport
+from .api import BwtBestWaterHomeClient, ExecutorTransport
 from .const import DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN
 
 if TYPE_CHECKING:
@@ -17,16 +17,6 @@ try:
 except ModuleNotFoundError:  # Allows unit tests of pure modules without HA installed.
     PLATFORMS = ["sensor"]
 
-
-class ExecutorTransport:
-    """Run the stdlib HTTP transport in Home Assistant's executor."""
-
-    def __init__(self, hass: "HomeAssistant") -> None:
-        self.hass = hass
-        self._sync = UrllibTransport()
-
-    async def post_json(self, url, payload, headers):
-        return await self.hass.async_add_executor_job(self._sync.post_json_sync, url, payload, headers)
 
 
 class BwtRuntime:
