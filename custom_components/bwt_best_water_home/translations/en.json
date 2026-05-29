@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BWT Best Water Home",
+        "description": "Paste an access token obtained from the BWT Best Water Home/AIDU OAuth helper. This MVP does not yet perform OAuth inside Home Assistant.",
+        "data": {
+          "access_token": "Access token",
+          "time_zone": "IANA time zone"
+        }
+      }
+    },
+    "error": {
+      "auth": "BWT rejected the token or customer context.",
+      "cannot_connect": "Could not connect to the BWT API.",
+      "no_products": "No BWT products were returned for this account."
+    },
+    "abort": {
+      "already_configured": "This BWT device is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "BWT Best Water Home options",
+        "data": {
+          "time_zone": "IANA time zone",
+          "scan_interval": "Scan interval in minutes"
+        }
+      }
+    }
+  }
+}
