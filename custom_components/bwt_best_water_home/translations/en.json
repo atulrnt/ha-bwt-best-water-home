@@ -11,7 +11,7 @@
       }
     },
     "error": {
-      "auth": "BWT rejected the token or customer context.",
+      "auth": "BWT rejected the token. Generate a fresh access token and paste only the access token value (the Bearer prefix is optional).",
       "cannot_connect": "Could not connect to the BWT API.",
       "no_products": "No BWT products were returned for this account."
     },

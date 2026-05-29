@@ -37,6 +37,8 @@ The BWT API currently appears to provide bucketed consumption values, not a true
 
 This MVP expects a BWT access token from an external OAuth/PKCE helper. It does **not** yet embed the OAuth login flow inside Home Assistant.
 
+Access tokens are short-lived. Generate a fresh token immediately before adding the integration. The form accepts either the raw token or a value prefixed with `Bearer `.
+
 For a polished release, the next step should be either:
 
 1. implement a Home Assistant OAuth external flow using the BWT public client + PKCE; or
