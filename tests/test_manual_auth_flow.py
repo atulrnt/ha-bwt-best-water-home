@@ -3,7 +3,16 @@ import unittest
 from custom_components.bwt_best_water_home.auth_flow import (
     AuthRedirectError,
     build_authorization_url,
+    build_token_exchange_form,
+    create_bwt_manual_auth_session,
     extract_authorization_code,
+)
+from custom_components.bwt_best_water_home.const import (
+    BWT_AUTHORIZATION_URL,
+    BWT_CLIENT_ID,
+    BWT_REDIRECT_URI,
+    BWT_SCOPE,
+    BWT_TOKEN_URL,
 )
 
 
@@ -53,6 +62,31 @@ class ManualAuthFlowTests(unittest.TestCase):
                 "com.bwt.athomeapp://login/?error=access_denied&error_description=Denied&state=state-123",
                 expected_state="state-123",
             )
+
+    def test_bwt_manual_auth_session_uses_confirmed_app_oauth_values(self):
+        session = create_bwt_manual_auth_session()
+
+        self.assertTrue(session.authorization_url.startswith(BWT_AUTHORIZATION_URL + "?"))
+        self.assertIn(f"client_id={BWT_CLIENT_ID}", session.authorization_url)
+        self.assertIn("redirect_uri=com.bwt.home.app%3A%2F%2Fsignin", session.authorization_url)
+        self.assertIn("scope=openid+profile+offline_access+email+aidu-api", session.authorization_url)
+        self.assertEqual(BWT_REDIRECT_URI, "com.bwt.home.app://signin")
+        self.assertEqual(BWT_TOKEN_URL, "https://account.bwt-group.com/connect/token")
+        self.assertEqual(BWT_SCOPE, "openid profile offline_access email aidu-api")
+
+    def test_build_bwt_token_exchange_form_uses_confirmed_app_oauth_values(self):
+        form = build_token_exchange_form(
+            client_id=BWT_CLIENT_ID,
+            redirect_uri=BWT_REDIRECT_URI,
+            code="code-123",
+            code_verifier="verifier-123",
+        )
+
+        self.assertEqual(form["grant_type"], "authorization_code")
+        self.assertEqual(form["client_id"], "bwt-best-water-app-prod")
+        self.assertEqual(form["redirect_uri"], "com.bwt.home.app://signin")
+        self.assertEqual(form["code"], "code-123")
+        self.assertEqual(form["code_verifier"], "verifier-123")
 
 
 if __name__ == "__main__":
