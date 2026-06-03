@@ -4,7 +4,7 @@ import asyncio
 import datetime as dt
 from typing import TYPE_CHECKING
 
-from .api import BwtBestWaterHomeClient, ExecutorTransport
+from .api import BwtAuthError, BwtBestWaterHomeClient, ExecutorTransport
 from .const import DEFAULT_CRON_SCHEDULE, DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN
 
 if TYPE_CHECKING:
@@ -12,9 +12,11 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 try:
+    from homeassistant import config_entries
     from homeassistant.const import Platform
     PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 except ModuleNotFoundError:  # Allows unit tests of pure modules without HA installed.
+    config_entries = None
     PLATFORMS = ["sensor", "button"]
 
 
@@ -37,6 +39,7 @@ class BwtRuntime:
         self._refresh_listeners = []
         self._refresh_lock = asyncio.Lock()
         self._ready = asyncio.Event()
+        self._reauth_started = False
 
     def add_refresh_listener(self, listener):
         self._refresh_listeners.append(listener)
@@ -66,9 +69,23 @@ class BwtRuntime:
 
     async def async_refresh_and_notify(self) -> None:
         async with self._refresh_lock:
-            await self.async_refresh()
+            try:
+                await self.async_refresh()
+            except BwtAuthError:
+                await self._async_start_reauth()
+                raise
             for listener in tuple(self._refresh_listeners):
                 listener()
+
+    async def _async_start_reauth(self) -> None:
+        if self._reauth_started or config_entries is None:
+            return
+        self._reauth_started = True
+        await self.hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_REAUTH, "entry_id": self.entry.entry_id},
+            data=self.entry.data,
+        )
 
     async def async_wait_ready(self) -> None:
         await self._ready.wait()
