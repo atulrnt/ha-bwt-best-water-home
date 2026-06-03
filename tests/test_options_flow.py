@@ -4,7 +4,7 @@ import types
 import unittest
 
 
-class OptionsFlowCompatibilityTests(unittest.TestCase):
+class OptionsFlowCompatibilityTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self._saved_modules = {name: sys.modules.get(name) for name in [
             "homeassistant",
@@ -35,12 +35,20 @@ class OptionsFlowCompatibilityTests(unittest.TestCase):
                 raise AssertionError("Home Assistant owns this read-only property")
 
             def async_create_entry(self, *, title, data):
-                return {"title": title, "data": data}
+                return {"type": "create_entry", "title": title, "data": data}
+
+            def async_show_form(self, *, step_id, data_schema, errors=None):
+                return {
+                    "type": "form",
+                    "step_id": step_id,
+                    "data_schema": data_schema,
+                    "errors": errors or {},
+                }
 
         config_entries.ConfigFlow = ConfigFlow
         config_entries.OptionsFlow = OptionsFlow
         const.CONF_ACCESS_TOKEN = "access_token"
-        const.Platform = types.SimpleNamespace(SENSOR="sensor")
+        const.Platform = types.SimpleNamespace(SENSOR="sensor", BUTTON="button")
         core.callback = lambda func: func
 
         homeassistant.config_entries = config_entries
@@ -66,6 +74,25 @@ class OptionsFlowCompatibilityTests(unittest.TestCase):
         options_flow = config_flow.BwtConfigFlow.async_get_options_flow(entry)
 
         self.assertIs(options_flow._config_entry, entry)
+
+    async def test_options_flow_uses_serializable_schema_types(self):
+        config_flow = importlib.import_module("custom_components.bwt_best_water_home.config_flow")
+        entry = types.SimpleNamespace(options={}, data={})
+        options_flow = config_flow.BwtConfigFlow.async_get_options_flow(entry)
+
+        result = await options_flow.async_step_init()
+
+        self.assertIs(result["data_schema"]["cron_schedule"], str)
+
+    async def test_options_flow_rejects_invalid_cron_schedule_without_raising(self):
+        config_flow = importlib.import_module("custom_components.bwt_best_water_home.config_flow")
+        entry = types.SimpleNamespace(options={}, data={})
+        options_flow = config_flow.BwtConfigFlow.async_get_options_flow(entry)
+
+        result = await options_flow.async_step_init({"time_zone": "Europe/Brussels", "cron_schedule": "*/5 * * * *"})
+
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["errors"], {"cron_schedule": "invalid_cron"})
 
 
 if __name__ == "__main__":

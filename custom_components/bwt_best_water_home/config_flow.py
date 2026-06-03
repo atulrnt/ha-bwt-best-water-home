@@ -117,12 +117,25 @@ class BwtOptionsFlow(config_entries.OptionsFlow):
         self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
+        errors = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            try:
+                cron_schedule = validate_cron_string((user_input.get("cron_schedule") or DEFAULT_CRON_SCHEDULE).strip())
+            except ValueError:
+                errors["cron_schedule"] = "invalid_cron"
+            else:
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        "time_zone": (user_input.get("time_zone") or DEFAULT_TIME_ZONE).strip(),
+                        "cron_schedule": cron_schedule,
+                    },
+                )
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
                 vol.Optional("time_zone", default=self._config_entry.options.get("time_zone", self._config_entry.data.get("time_zone", DEFAULT_TIME_ZONE))): str,
-                vol.Optional("cron_schedule", default=self._config_entry.options.get("cron_schedule", DEFAULT_CRON_SCHEDULE)): validate_cron_string,
+                vol.Optional("cron_schedule", default=self._config_entry.options.get("cron_schedule", DEFAULT_CRON_SCHEDULE)): str,
             }),
+            errors=errors,
         )
