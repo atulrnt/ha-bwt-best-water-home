@@ -96,7 +96,7 @@ class BwtWaterTotalSensor(BwtBaseSensor, RestoreEntity):
         return {
             "total_l": state.total_l,
             "last_processed": state.last_processed.isoformat() if state.last_processed else None,
-            "source": "BWT Skyline daily bucket accumulator",
+            "source": "BWT/AIDU app daily bucket accumulator",
             "warning": "Derived from BWT softener bucketed consumption; not a direct main water meter.",
         }
 
@@ -119,13 +119,19 @@ class BwtDailyWaterSensor(BwtBaseSensor):
 
 
 class BwtDailySaltSensor(BwtBaseSensor):
-    _attr_name = "Daily salt"
+    _attr_name = "Daily salt/resource"
     _attr_device_class = SensorDeviceClass.WEIGHT
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfMass.GRAMS
 
     def __init__(self, runtime, entry: ConfigEntry) -> None:
         super().__init__(runtime, entry, "daily_salt")
+
+    @property
+    def native_unit_of_measurement(self):
+        unit = (self.runtime.last_stats.salt_unit or "").lower() if self.runtime.last_stats else ""
+        if unit in ("kilogram", "kilograms", "kg"):
+            return UnitOfMass.KILOGRAMS
+        return UnitOfMass.GRAMS
 
     @property
     def native_value(self):

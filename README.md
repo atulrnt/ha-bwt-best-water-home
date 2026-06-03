@@ -4,13 +4,23 @@ Experimental HACS custom integration for BWT Best Water Home / AIDU-backed water
 
 ## Status
 
-MVP / proof of concept. Confirmed against a Best Water Home account where the app exposes:
+MVP / proof of concept. Confirmed against the Best Water Home APK (`/home/hermes/bwt-apk`, app version `3.13.2`) using the production AIDU GraphQL backend:
 
+- `https://api.aidu.solutions/api/graphql/homeapp/`
+- auth authority `https://account.bwt-group.com`
+- OAuth client `bwt-best-water-app-prod`
+- app redirect URI `com.bwt.home.app://signin`
+
+The integration supports the app-observed cloud statistic fields for:
+
+- `productShadow.__typename: PerlaShadow`
+  - `perlaTreatedWaterStatistics`
+  - `perlaResourceStatistics`
 - `productShadow.__typename: SkylineShadow`
-- `skylineStatisticsTotalWaterConsumption` in `Litre`
-- `skylineStatisticsTotalSaltConsumption` in `Gram`
+  - `skylineStatisticsTotalWaterConsumption`
+  - `skylineStatisticsTotalSaltConsumption`
 
-The BWT API currently appears to provide bucketed consumption values, not a true lifetime water counter for Skyline devices. This integration therefore derives the Energy-dashboard water total by checkpointing and summing closed daily buckets.
+The BWT API currently appears to provide bucketed consumption values, not a true lifetime water counter. This integration therefore derives the Energy-dashboard water total by checkpointing and summing closed daily buckets.
 
 ## Entities
 
