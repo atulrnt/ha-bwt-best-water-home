@@ -9,7 +9,8 @@ from homeassistant.const import CONF_ACCESS_TOKEN
 from homeassistant.core import callback
 
 from .api import BwtApiError, BwtAuthError, BwtBestWaterHomeClient, ExecutorTransport
-from .const import DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN, NAME
+from .const import DEFAULT_CRON_SCHEDULE, DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN, NAME
+from .cron_schedule import validate_cron_string
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +78,6 @@ class BwtOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema({
                 vol.Optional("time_zone", default=self.config_entry.options.get("time_zone", self.config_entry.data.get("time_zone", DEFAULT_TIME_ZONE))): str,
-                vol.Optional("scan_interval", default=self.config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL_MINUTES)): int,
+                vol.Optional("cron_schedule", default=self.config_entry.options.get("cron_schedule", DEFAULT_CRON_SCHEDULE)): validate_cron_string,
             }),
         )

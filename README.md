@@ -46,6 +46,24 @@ For a polished release, the next step should be either:
 
 Do not commit tokens, account IDs, serial numbers, callback URLs, or raw API responses.
 
+## Polling schedule
+
+The integration polls the BWT cloud on a cron schedule configured from the integration options:
+
+```text
+Settings → Devices & services → BWT Best Water Home → Configure
+```
+
+Default schedule:
+
+```cron
+0 2 * * *
+```
+
+This means once per day at 02:00 in the configured IANA time zone, defaulting to `Europe/Brussels`. The validator rejects schedules that can run more than once per day to avoid unnecessary BWT API calls and rate-limit/session issues.
+
+The integration does not refresh immediately during Home Assistant startup; it waits for the next scheduled run.
+
 ## Accuracy warning
 
 BWT softener consumption may not equal whole-house water consumption. It may only count softened-water branches and it is cloud/bucket based. For billing-grade or whole-house Energy data, a dedicated main water meter reader is still better.
@@ -55,7 +73,7 @@ BWT softener consumption may not equal whole-house water consumption. It may onl
 Run tests with stdlib unittest:
 
 ```bash
-python3 -m unittest -v tests/test_client_and_accumulator.py
+python3 -m unittest discover tests
 ```
 
 Syntax check:
