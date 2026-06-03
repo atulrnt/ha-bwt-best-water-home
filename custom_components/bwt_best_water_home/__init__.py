@@ -54,17 +54,21 @@ class BwtRuntime:
         if self.customer_id is None:
             self.customer_id = await self.client.get_customer_id()
         self.last_products = await self.client.get_products(self.customer_id)
+        selected_product = None
         if self.product_id is None:
-            skyline = [p for p in self.last_products if p.shadow_type == "SkylineShadow"]
-            product = skyline[0] if skyline else self.last_products[0]
-            self.product_id = product.product_instance_id
-            self.product_name = product.name
+            app_supported = [p for p in self.last_products if p.shadow_type in ("PerlaShadow", "SkylineShadow")]
+            selected_product = app_supported[0] if app_supported else self.last_products[0]
+            self.product_id = selected_product.product_instance_id
+            self.product_name = selected_product.name
         else:
             for product in self.last_products:
                 if product.product_instance_id == self.product_id:
+                    selected_product = product
                     self.product_name = product.name
                     break
-        self.last_stats = await self.client.get_skyline_stats(self.customer_id, self.product_id, time_zone=self.time_zone)
+        if selected_product is None:
+            selected_product = self.last_products[0]
+        self.last_stats = await self.client.get_device_stats(self.customer_id, selected_product, time_zone=self.time_zone)
         self._ready.set()
 
     async def async_refresh_and_notify(self) -> None:

@@ -37,7 +37,7 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
 
         customer_id = await client.get_customer_id()
         products = await client.get_products(customer_id)
-        stats = await client.get_skyline_stats(customer_id, "pid-1", days=14)
+        stats = await client.get_device_stats(customer_id, products[0], days=14)
 
         self.assertEqual(customer_id, "cust-1")
         self.assertEqual(products[0].product_instance_id, "pid-1")
@@ -48,6 +48,30 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(transport.calls[0][2]["authorization"], "Bearer access-token")
         self.assertEqual(transport.calls[1][2]["ctx-current-customer-id"], "cust-1")
         self.assertEqual(transport.calls[2][1]["variables"]["format"], "Day")
+
+    async def test_client_uses_app_perla_statistics_for_perla_shadow(self):
+        transport = FakeTransport([
+            {"data": {"water": {"measurementUnit": "Litre", "dataPoints": [{"date": "2026-05-27T22:00:00.000Z", "value": 123}]}, "salt": {"measurementUnit": "Kilogram", "dataPoints": [{"date": "2026-05-27T22:00:00.000Z", "value": 1.5}]}}},
+        ])
+        client = BwtBestWaterHomeClient("access-token", transport=transport)
+        product = type("Product", (), {"product_instance_id": "perla-1", "shadow_type": "PerlaShadow"})()
+
+        stats = await client.get_device_stats("cust-1", product, days=14, time_zone="UTC")
+
+        payload = transport.calls[0][1]
+        query = payload["query"]
+        self.assertIn("perlaTreatedWaterStatistics", query)
+        self.assertIn("perlaResourceStatistics", query)
+        self.assertNotIn("skylineStatisticsTotalWaterConsumption", query)
+        self.assertEqual(payload["variables"]["productInstanceId"], "perla-1")
+        self.assertEqual(payload["variables"]["format"], "Day")
+        self.assertEqual(payload["variables"]["ianaTimeZone"], "UTC")
+        self.assertEqual(transport.calls[0][2]["ctx-current-customer-id"], "cust-1")
+        self.assertEqual(transport.calls[0][2]["experimental-features"], "CustomerContext")
+        self.assertEqual(stats.water_unit, "Litre")
+        self.assertEqual(stats.water_points[0].value, 123)
+        self.assertEqual(stats.salt_unit, "Kilogram")
+        self.assertEqual(stats.salt_points[0].value, 1.5)
 
     async def test_client_raises_auth_error_for_graphql_unauthorized(self):
         transport = FakeTransport([

@@ -39,11 +39,14 @@ class BwtDataPoint:
 
 
 @dataclass(frozen=True)
-class BwtSkylineStats:
+class BwtDeviceStats:
     water_unit: str | None
     water_points: list[BwtDataPoint]
     salt_unit: str | None
     salt_points: list[BwtDataPoint]
+
+
+BwtSkylineStats = BwtDeviceStats
 
 
 class BwtTransport(Protocol):
@@ -164,6 +167,31 @@ class BwtBestWaterHomeClient:
             ))
         return products
 
+    async def get_device_stats(
+        self,
+        customer_id: str,
+        product: BwtProduct,
+        *,
+        days: int = 14,
+        time_zone: str = DEFAULT_TIME_ZONE,
+        resolution: str = "Day",
+    ) -> BwtDeviceStats:
+        if product.shadow_type == "PerlaShadow":
+            return await self.get_perla_stats(
+                customer_id,
+                product.product_instance_id,
+                days=days,
+                time_zone=time_zone,
+                resolution=resolution,
+            )
+        return await self.get_skyline_stats(
+            customer_id,
+            product.product_instance_id,
+            days=days,
+            time_zone=time_zone,
+            resolution=resolution,
+        )
+
     async def get_skyline_stats(
         self,
         customer_id: str,
@@ -172,8 +200,7 @@ class BwtBestWaterHomeClient:
         days: int = 14,
         time_zone: str = DEFAULT_TIME_ZONE,
         resolution: str = "Day",
-    ) -> BwtSkylineStats:
-        now = dt.datetime.now(dt.UTC)
+    ) -> BwtDeviceStats:
         query = """
         query SkylineStats($productInstanceId: String!, $format: IDataPointResolutionFormat, $fromDate: DateTime, $untilDate: DateTime, $ianaTimeZone: String) {
           water: skylineStatisticsTotalWaterConsumption(productInstanceId: $productInstanceId, format: $format, fromDate: $fromDate, untilDate: $untilDate, ianaTimeZone: $ianaTimeZone) {
@@ -184,6 +211,54 @@ class BwtBestWaterHomeClient:
           }
         }
         """
+        return await self._get_bucketed_stats(
+            query,
+            customer_id,
+            product_instance_id,
+            days=days,
+            time_zone=time_zone,
+            resolution=resolution,
+        )
+
+    async def get_perla_stats(
+        self,
+        customer_id: str,
+        product_instance_id: str,
+        *,
+        days: int = 14,
+        time_zone: str = DEFAULT_TIME_ZONE,
+        resolution: str = "Day",
+    ) -> BwtDeviceStats:
+        query = """
+        query PerlaStats($productInstanceId: String!, $format: IDataPointResolutionFormat!, $fromDate: DateTime, $untilDate: DateTime, $ianaTimeZone: String) {
+          water: perlaTreatedWaterStatistics(productInstanceId: $productInstanceId, format: $format, fromDate: $fromDate, untilDate: $untilDate, ianaTimeZone: $ianaTimeZone) {
+            measurementUnit dataPoints { date value }
+          }
+          salt: perlaResourceStatistics(productInstanceId: $productInstanceId, format: $format, fromDate: $fromDate, untilDate: $untilDate, ianaTimeZone: $ianaTimeZone) {
+            measurementUnit dataPoints { date value }
+          }
+        }
+        """
+        return await self._get_bucketed_stats(
+            query,
+            customer_id,
+            product_instance_id,
+            days=days,
+            time_zone=time_zone,
+            resolution=resolution,
+        )
+
+    async def _get_bucketed_stats(
+        self,
+        query: str,
+        customer_id: str,
+        product_instance_id: str,
+        *,
+        days: int,
+        time_zone: str,
+        resolution: str,
+    ) -> BwtDeviceStats:
+        now = dt.datetime.now(dt.UTC)
         data = await self._graphql(query, {
             "productInstanceId": product_instance_id,
             "format": resolution,
@@ -194,7 +269,7 @@ class BwtBestWaterHomeClient:
         stats = data.get("data") or {}
         water = stats.get("water") or {}
         salt = stats.get("salt") or {}
-        return BwtSkylineStats(
+        return BwtDeviceStats(
             water_unit=water.get("measurementUnit"),
             water_points=_parse_points(water.get("dataPoints") or []),
             salt_unit=salt.get("measurementUnit"),
