@@ -35,16 +35,18 @@ The BWT API currently appears to provide bucketed consumption values, not a true
 
 ## Current auth limitation
 
-This MVP expects a BWT access token from an external OAuth/PKCE helper. It does **not** yet embed the OAuth login flow inside Home Assistant.
+This MVP still accepts a manually obtained BWT access token. The form accepts either the raw token or a value prefixed with `Bearer `.
 
-Access tokens are short-lived. Generate a fresh token immediately before adding the integration. The form accepts either the raw token or a value prefixed with `Bearer `.
+The integration code now includes the safer manual browser OAuth/PKCE building blocks for the next config-flow iteration:
 
-For a polished release, the next step should be either:
+1. Home Assistant creates a BWT/AIDU authorization URL using the exact mobile-app redirect URI and PKCE challenge.
+2. The user opens that URL in a normal browser, not an iframe or embedded/headless browser.
+3. After login, the user pastes the final redirected URL or authorization code back into Home Assistant.
+4. Home Assistant validates the OAuth `state` and can exchange `code + code_verifier` for tokens once the BWT/AIDU OAuth endpoint/client constants are confirmed.
 
-1. implement a Home Assistant OAuth external flow using the BWT public client + PKCE; or
-2. store a refresh token and refresh access tokens automatically.
+This avoids embedding the provider login page inside Home Assistant and avoids asking Home Assistant to handle the user's BWT password.
 
-Do not commit tokens, account IDs, serial numbers, callback URLs, or raw API responses.
+Do not commit tokens, authorization codes, account IDs, serial numbers, callback URLs, or raw API responses.
 
 ## Polling schedule
 
