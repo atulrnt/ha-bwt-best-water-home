@@ -30,9 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     async def _scheduled_refresh(now):
         nonlocal remove_scheduled_refresh
-        await runtime.async_refresh()
-        for entity in entities:
-            entity.async_write_ha_state()
+        await runtime.async_refresh_and_notify()
         remove_scheduled_refresh = _schedule_next_refresh(now)
 
     def _schedule_next_refresh(now=None):
@@ -45,8 +43,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         next_run = next_cron_time(runtime.cron_schedule, schedule_now)
         return async_track_point_in_time(hass, _scheduled_refresh, next_run)
 
+    def _write_entity_states() -> None:
+        for entity in entities:
+            entity.async_write_ha_state()
+
     remove_scheduled_refresh = _schedule_next_refresh()
+    remove_refresh_listener = runtime.add_refresh_listener(_write_entity_states)
     entry.async_on_unload(lambda: remove_scheduled_refresh and remove_scheduled_refresh())
+    entry.async_on_unload(remove_refresh_listener)
 
 
 class BwtBaseSensor(SensorEntity):
