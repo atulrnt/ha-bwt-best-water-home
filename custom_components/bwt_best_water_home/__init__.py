@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 try:
     from homeassistant.const import Platform
-    PLATFORMS = [Platform.SENSOR]
+    PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 except ModuleNotFoundError:  # Allows unit tests of pure modules without HA installed.
-    PLATFORMS = ["sensor"]
+    PLATFORMS = ["sensor", "button"]
 
 
 
@@ -34,7 +34,18 @@ class BwtRuntime:
         self.cron_schedule = entry.options.get("cron_schedule", entry.data.get("cron_schedule", DEFAULT_CRON_SCHEDULE))
         self.last_stats = None
         self.last_products = []
+        self._refresh_listeners = []
+        self._refresh_lock = asyncio.Lock()
         self._ready = asyncio.Event()
+
+    def add_refresh_listener(self, listener):
+        self._refresh_listeners.append(listener)
+
+        def remove_listener() -> None:
+            if listener in self._refresh_listeners:
+                self._refresh_listeners.remove(listener)
+
+        return remove_listener
 
     async def async_refresh(self) -> None:
         if self.customer_id is None:
@@ -52,6 +63,12 @@ class BwtRuntime:
                     break
         self.last_stats = await self.client.get_skyline_stats(self.customer_id, self.product_id, time_zone=self.time_zone)
         self._ready.set()
+
+    async def async_refresh_and_notify(self) -> None:
+        async with self._refresh_lock:
+            await self.async_refresh()
+            for listener in tuple(self._refresh_listeners):
+                listener()
 
     async def async_wait_ready(self) -> None:
         await self._ready.wait()
