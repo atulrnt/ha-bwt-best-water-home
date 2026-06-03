@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import secrets
 import string
 from dataclasses import dataclass
 from typing import Any
+from urllib import error, parse, request
 from urllib.parse import parse_qs, urlencode, urlparse
 
 
@@ -98,6 +100,19 @@ def create_manual_auth_session(
     )
 
 
+def create_bwt_manual_auth_session() -> ManualAuthSession:
+    """Create a manual browser auth session using confirmed BWT app OAuth values."""
+
+    from .const import BWT_AUTHORIZATION_URL, BWT_CLIENT_ID, BWT_REDIRECT_URI, BWT_SCOPE
+
+    return create_manual_auth_session(
+        authorize_url=BWT_AUTHORIZATION_URL,
+        client_id=BWT_CLIENT_ID,
+        redirect_uri=BWT_REDIRECT_URI,
+        scope=BWT_SCOPE,
+    )
+
+
 def extract_authorization_code(pasted_value: str, *, expected_state: str | None = None) -> str:
     """Extract an OAuth authorization code from a pasted redirect URL or raw code.
 
@@ -149,6 +164,43 @@ def build_token_exchange_form(
     if extra_params:
         form.update(extra_params)
     return form
+
+
+def exchange_token_sync(token_url: str, form: dict[str, str]) -> dict[str, Any]:
+    """Exchange an OAuth form for a token response using stdlib urllib."""
+
+    req = request.Request(
+        token_url,
+        data=parse.urlencode(form).encode(),
+        headers={"content-type": "application/x-www-form-urlencoded", "accept": "application/json"},
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode())
+    except error.HTTPError as exc:
+        body = exc.read().decode(errors="replace")
+        try:
+            parsed = json.loads(body)
+        except json.JSONDecodeError:
+            parsed = {"message": body}
+        raise AuthRedirectError(f"BWT token exchange failed with HTTP {exc.code}: {parsed}") from exc
+
+
+def exchange_bwt_authorization_code_sync(*, code: str, code_verifier: str) -> dict[str, Any]:
+    """Exchange a BWT authorization code for OAuth tokens."""
+
+    from .const import BWT_CLIENT_ID, BWT_REDIRECT_URI, BWT_TOKEN_URL
+
+    return exchange_token_sync(
+        BWT_TOKEN_URL,
+        build_token_exchange_form(
+            client_id=BWT_CLIENT_ID,
+            redirect_uri=BWT_REDIRECT_URI,
+            code=code,
+            code_verifier=code_verifier,
+        ),
+    )
 
 
 def extract_access_token(token_response: dict[str, Any]) -> str:

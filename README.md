@@ -33,18 +33,16 @@ The BWT API currently appears to provide bucketed consumption values, not a true
 5. Restart Home Assistant.
 6. Add integration: **Settings → Devices & services → Add integration → BWT Best Water Home**.
 
-## Current auth limitation
+## Current auth flow
 
-This MVP still accepts a manually obtained BWT access token. The form accepts either the raw token or a value prefixed with `Bearer `.
+The setup flow uses a normal-browser OAuth/PKCE flow:
 
-The integration code now includes the safer manual browser OAuth/PKCE building blocks for the next config-flow iteration:
-
-1. Home Assistant creates a BWT/AIDU authorization URL using the exact mobile-app redirect URI and PKCE challenge.
+1. Home Assistant shows a BWT login link built from the confirmed BWT Best Water Home public-client OAuth values.
 2. The user opens that URL in a normal browser, not an iframe or embedded/headless browser.
 3. After login, the user pastes the final redirected URL or authorization code back into Home Assistant.
-4. Home Assistant validates the OAuth `state` and can exchange `code + code_verifier` for tokens once the BWT/AIDU OAuth endpoint/client constants are confirmed.
+4. Home Assistant validates the OAuth `state`, exchanges `code + code_verifier` for tokens, then discovers the user's BWT products.
 
-This avoids embedding the provider login page inside Home Assistant and avoids asking Home Assistant to handle the user's BWT password.
+The access-token field remains available as a fallback for manually generated tokens. This avoids embedding the provider login page inside Home Assistant and avoids asking Home Assistant to handle the user's BWT password.
 
 Do not commit tokens, authorization codes, account IDs, serial numbers, callback URLs, or raw API responses.
 
