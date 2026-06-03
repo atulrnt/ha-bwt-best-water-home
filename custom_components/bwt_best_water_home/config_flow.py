@@ -114,7 +114,7 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class BwtOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry):
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
@@ -122,7 +122,7 @@ class BwtOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Optional("time_zone", default=self.config_entry.options.get("time_zone", self.config_entry.data.get("time_zone", DEFAULT_TIME_ZONE))): str,
-                vol.Optional("cron_schedule", default=self.config_entry.options.get("cron_schedule", DEFAULT_CRON_SCHEDULE)): validate_cron_string,
+                vol.Optional("time_zone", default=self._config_entry.options.get("time_zone", self._config_entry.data.get("time_zone", DEFAULT_TIME_ZONE))): str,
+                vol.Optional("cron_schedule", default=self._config_entry.options.get("cron_schedule", DEFAULT_CRON_SCHEDULE)): validate_cron_string,
             }),
         )
