@@ -5,7 +5,7 @@ import datetime as dt
 from typing import TYPE_CHECKING
 
 from .api import BwtBestWaterHomeClient, ExecutorTransport
-from .const import DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN
+from .const import DEFAULT_CRON_SCHEDULE, DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -31,6 +31,7 @@ class BwtRuntime:
         self.product_name: str | None = None
         self.time_zone = entry.options.get("time_zone", entry.data.get("time_zone", DEFAULT_TIME_ZONE))
         self.scan_interval = dt.timedelta(minutes=entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL_MINUTES))
+        self.cron_schedule = entry.options.get("cron_schedule", entry.data.get("cron_schedule", DEFAULT_CRON_SCHEDULE))
         self.last_stats = None
         self.last_products = []
         self._ready = asyncio.Event()
@@ -59,7 +60,6 @@ class BwtRuntime:
 async def async_setup_entry(hass: "HomeAssistant", entry: "ConfigEntry") -> bool:
     runtime = BwtRuntime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
-    await runtime.async_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

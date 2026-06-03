@@ -25,7 +25,7 @@
         "title": "BWT Best Water Home options",
         "data": {
           "time_zone": "IANA time zone",
-          "scan_interval": "Scan interval in minutes"
+          "cron_schedule": "Cron schedule"
         }
       }
     }

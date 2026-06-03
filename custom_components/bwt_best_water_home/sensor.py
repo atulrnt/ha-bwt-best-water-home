@@ -1,22 +1,24 @@
 from __future__ import annotations
 
 import datetime as dt
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfVolume, UnitOfMass
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_point_in_time
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .accumulator import WaterAccumulator
 from .const import DOMAIN
+from .cron_schedule import next_cron_time
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     runtime = hass.data[DOMAIN][entry.entry_id]
-    await runtime.async_wait_ready()
     entities = [
         BwtWaterTotalSensor(runtime, entry),
         BwtDailyWaterSensor(runtime, entry),
@@ -24,12 +26,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     ]
     async_add_entities(entities)
 
-    async def _periodic_refresh(now):
+    remove_scheduled_refresh = None
+
+    async def _scheduled_refresh(now):
+        nonlocal remove_scheduled_refresh
         await runtime.async_refresh()
         for entity in entities:
             entity.async_write_ha_state()
+        remove_scheduled_refresh = _schedule_next_refresh(now)
 
-    entry.async_on_unload(async_track_time_interval(hass, _periodic_refresh, runtime.scan_interval))
+    def _schedule_next_refresh(now=None):
+        if now is None:
+            now = dt_util.now()
+        try:
+            schedule_now = now.astimezone(ZoneInfo(runtime.time_zone))
+        except ZoneInfoNotFoundError:
+            schedule_now = now
+        next_run = next_cron_time(runtime.cron_schedule, schedule_now)
+        return async_track_point_in_time(hass, _scheduled_refresh, next_run)
+
+    remove_scheduled_refresh = _schedule_next_refresh()
+    entry.async_on_unload(lambda: remove_scheduled_refresh and remove_scheduled_refresh())
 
 
 class BwtBaseSensor(SensorEntity):
