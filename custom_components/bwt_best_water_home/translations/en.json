@@ -9,6 +9,23 @@
           "access_token": "Access token fallback",
           "time_zone": "IANA time zone"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate BWT Best Water Home",
+        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.\n\nThe access token field is kept as a fallback for manually generated tokens.",
+        "data": {
+          "callback_url": "Redirected URL or authorization code",
+          "access_token": "Access token fallback"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure BWT Best Water Home",
+        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.\n\nThe access token field is kept as a fallback for manually generated tokens.",
+        "data": {
+          "callback_url": "Redirected URL or authorization code",
+          "access_token": "Access token fallback",
+          "time_zone": "IANA time zone"
+        }
       }
     },
     "error": {
@@ -19,7 +36,9 @@
       "no_products": "No BWT products were returned for this account."
     },
     "abort": {
-      "already_configured": "This BWT device is already configured."
+      "already_configured": "This BWT device is already configured.",
+      "reauth_successful": "BWT Best Water Home authentication was updated.",
+      "reconfigure_successful": "BWT Best Water Home configuration was updated."
     }
   },
   "options": {
