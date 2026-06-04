@@ -104,7 +104,7 @@ class BwtWaterTotalSensor(BwtBaseSensor, RestoreEntity):
 class BwtDailyWaterSensor(BwtBaseSensor):
     _attr_name = "Daily water"
     _attr_device_class = SensorDeviceClass.WATER
-    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfVolume.LITERS
 
     def __init__(self, runtime, entry: ConfigEntry) -> None:

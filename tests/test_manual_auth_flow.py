@@ -3,9 +3,12 @@ import unittest
 from custom_components.bwt_best_water_home.auth_flow import (
     AuthRedirectError,
     build_authorization_url,
+    build_refresh_token_form,
     build_token_exchange_form,
     create_bwt_manual_auth_session,
+    extract_access_token,
     extract_authorization_code,
+    extract_token_data,
 )
 from custom_components.bwt_best_water_home.const import (
     BWT_AUTHORIZATION_URL,
@@ -87,6 +90,32 @@ class ManualAuthFlowTests(unittest.TestCase):
         self.assertEqual(form["redirect_uri"], "com.bwt.home.app://signin")
         self.assertEqual(form["code"], "code-123")
         self.assertEqual(form["code_verifier"], "verifier-123")
+
+    def test_extract_token_data_preserves_refresh_token_and_expiry(self):
+        token_data = extract_token_data({
+            "access_token": " access-123 ",
+            "refresh_token": " refresh-123 ",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+            "scope": "openid profile offline_access email aidu-api",
+        })
+
+        self.assertEqual(token_data["access_token"], "access-123")
+        self.assertEqual(token_data["refresh_token"], "refresh-123")
+        self.assertEqual(token_data["expires_in"], 3600)
+        self.assertEqual(token_data["token_type"], "Bearer")
+        self.assertEqual(token_data["scope"], "openid profile offline_access email aidu-api")
+        self.assertIn("expires_at", token_data)
+
+    def test_extract_access_token_still_returns_access_token(self):
+        self.assertEqual(extract_access_token({"access_token": " access-123 "}), "access-123")
+
+    def test_build_refresh_token_form_uses_bwt_client(self):
+        form = build_refresh_token_form(client_id=BWT_CLIENT_ID, refresh_token="refresh-123")
+
+        self.assertEqual(form["grant_type"], "refresh_token")
+        self.assertEqual(form["client_id"], "bwt-best-water-app-prod")
+        self.assertEqual(form["refresh_token"], "refresh-123")
 
 
 if __name__ == "__main__":

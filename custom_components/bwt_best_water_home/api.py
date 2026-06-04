@@ -53,6 +53,22 @@ class BwtTransport(Protocol):
     async def post_json(self, url: str, payload: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]: ...
 
 
+def _is_auth_error_response(status_code: int, parsed: Any) -> bool:
+    """Return true for HTTP responses that are really auth failures.
+
+    BWT/AIDU sometimes returns HTTP 500 with an authentication error body instead
+    of a normal 401/403. Treat only narrowly auth-looking bodies as auth errors.
+    """
+
+    if status_code in (401, 403):
+        return True
+    if not isinstance(parsed, dict):
+        return False
+    text = " ".join(str(parsed.get(key, "")) for key in ("title", "detail", "message"))
+    text = text.lower()
+    return "authenticating request" in text or "unauthorized" in text
+
+
 class UrllibTransport:
     """Small stdlib transport; Home Assistant calls it through async_add_executor_job."""
 
@@ -72,7 +88,7 @@ class UrllibTransport:
                 parsed = json.loads(body)
             except json.JSONDecodeError:
                 parsed = {"message": body}
-            if exc.code in (401, 403):
+            if _is_auth_error_response(exc.code, parsed):
                 raise BwtAuthError(f"BWT HTTP {exc.code}: {parsed}") from exc
             raise BwtApiError(f"BWT HTTP {exc.code}: {parsed}") from exc
 

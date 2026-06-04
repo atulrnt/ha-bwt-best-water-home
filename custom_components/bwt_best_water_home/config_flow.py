@@ -15,14 +15,20 @@ from .auth_flow import (
     ManualAuthSession,
     create_bwt_manual_auth_session,
     exchange_bwt_authorization_code_sync,
-    extract_access_token,
     extract_authorization_code,
+    extract_token_data,
 )
 from .const import BWT_REDIRECT_URI, DEFAULT_CRON_SCHEDULE, DEFAULT_TIME_ZONE, DOMAIN, NAME
 from .cron_schedule import validate_cron_string
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _clean_data(data: dict) -> dict:
+    """Drop empty optional token fields before writing config entry data."""
+
+    return {key: value for key, value in data.items() if value is not None}
 
 
 class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -42,28 +48,8 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         errors = {}
         if user_input is not None:
-            token = (user_input.get(CONF_ACCESS_TOKEN) or "").strip()
-            if not token:
-                callback_url = (user_input.get("callback_url") or "").strip()
-                if not callback_url:
-                    errors["base"] = "missing_auth"
-                else:
-                    try:
-                        code = extract_authorization_code(callback_url, expected_state=self.auth_session.state)
-                        token_response = await self.hass.async_add_executor_job(
-                            partial(
-                                exchange_bwt_authorization_code_sync,
-                                code=code,
-                                code_verifier=self.auth_session.code_verifier,
-                            )
-                        )
-                        token = extract_access_token(token_response)
-                    except AuthRedirectError as exc:
-                        _LOGGER.warning("BWT Best Water Home OAuth flow failed: %s", exc)
-                        errors["base"] = "oauth"
-                    except Exception:
-                        _LOGGER.exception("Unexpected BWT Best Water Home OAuth exchange failure")
-                        errors["base"] = "cannot_connect"
+            token_data = await self._async_token_data_from_auth_input(user_input, errors)
+            token = token_data.get(CONF_ACCESS_TOKEN, "")
             if token and not errors:
                 client = BwtBestWaterHomeClient(token, transport=ExecutorTransport(self.hass))
                 try:
@@ -85,14 +71,16 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     else:
                         await self.async_set_unique_id(product.product_instance_id)
                         self._abort_if_unique_id_configured()
+                        entry_data = _clean_data({
+                            **token_data,
+                            CONF_ACCESS_TOKEN: token,
+                            "customer_id": customer_id,
+                            "product_instance_id": product.product_instance_id,
+                            "time_zone": user_input.get("time_zone") or DEFAULT_TIME_ZONE,
+                        })
                         return self.async_create_entry(
                             title=product.name or NAME,
-                            data={
-                                CONF_ACCESS_TOKEN: token,
-                                "customer_id": customer_id,
-                                "product_instance_id": product.product_instance_id,
-                                "time_zone": user_input.get("time_zone") or DEFAULT_TIME_ZONE,
-                            },
+                            data=entry_data,
                         )
         return self.async_show_form(
             step_id="user",
@@ -115,7 +103,8 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reauth_confirm(self, user_input=None):
         errors = {}
         if user_input is not None:
-            token = await self._async_token_from_auth_input(user_input, errors)
+            token_data = await self._async_token_data_from_auth_input(user_input, errors)
+            token = token_data.get(CONF_ACCESS_TOKEN, "")
             if token and not errors:
                 validation = await self._async_validate_token(token)
                 if "error" in validation:
@@ -124,7 +113,7 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     entry = self._reauth_entry or self.hass.config_entries.async_get_entry(self.context["entry_id"])
                     self.hass.config_entries.async_update_entry(
                         entry,
-                        data={**entry.data, CONF_ACCESS_TOKEN: token},
+                        data=_clean_data({**entry.data, **token_data, CONF_ACCESS_TOKEN: token}),
                     )
                     await self.hass.config_entries.async_reload(entry.entry_id)
                     return self.async_abort(reason="reauth_successful")
@@ -135,7 +124,8 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._reconfigure_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         errors = {}
         if user_input is not None:
-            token = await self._async_token_from_auth_input(user_input, errors)
+            token_data = await self._async_token_data_from_auth_input(user_input, errors)
+            token = token_data.get(CONF_ACCESS_TOKEN, "")
             if token and not errors:
                 validation = await self._async_validate_token(token)
                 if "error" in validation:
@@ -143,12 +133,13 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 else:
                     product = validation["product"]
                     entry = self._reconfigure_entry
-                    data = {
+                    data = _clean_data({
+                        **token_data,
                         CONF_ACCESS_TOKEN: token,
                         "customer_id": validation["customer_id"],
                         "product_instance_id": product.product_instance_id,
                         "time_zone": user_input.get("time_zone") or entry.data.get("time_zone", DEFAULT_TIME_ZONE),
-                    }
+                    })
                     self.hass.config_entries.async_update_entry(entry, title=product.name or NAME, data=data)
                     await self.hass.config_entries.async_reload(entry.entry_id)
                     return self.async_abort(reason="reconfigure_successful")
@@ -174,14 +165,14 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
 
-    async def _async_token_from_auth_input(self, user_input, errors) -> str:
+    async def _async_token_data_from_auth_input(self, user_input, errors) -> dict:
         token = (user_input.get(CONF_ACCESS_TOKEN) or "").strip()
         if token:
-            return token
+            return {CONF_ACCESS_TOKEN: token}
         callback_url = (user_input.get("callback_url") or "").strip()
         if not callback_url:
             errors["base"] = "missing_auth"
-            return ""
+            return {}
         try:
             code = extract_authorization_code(callback_url, expected_state=self.auth_session.state)
             token_response = await self.hass.async_add_executor_job(
@@ -191,14 +182,15 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     code_verifier=self.auth_session.code_verifier,
                 )
             )
-            return extract_access_token(token_response)
+            token_data = extract_token_data(token_response)
+            return {CONF_ACCESS_TOKEN: token_data["access_token"], **token_data}
         except AuthRedirectError as exc:
             _LOGGER.warning("BWT Best Water Home OAuth flow failed: %s", exc)
             errors["base"] = "oauth"
         except Exception:
             _LOGGER.exception("Unexpected BWT Best Water Home OAuth exchange failure")
             errors["base"] = "cannot_connect"
-        return ""
+        return {}
 
     async def _async_validate_token(self, token: str) -> dict:
         client = BwtBestWaterHomeClient(token, transport=ExecutorTransport(self.hass))
