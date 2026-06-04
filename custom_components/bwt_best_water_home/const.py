@@ -8,6 +8,6 @@ BWT_TOKEN_URL = f"{BWT_OAUTH_AUTHORITY}/connect/token"
 BWT_CLIENT_ID = "bwt-best-water-app-prod"
 BWT_REDIRECT_URI = "com.bwt.home.app://signin"
 BWT_SCOPE = "openid profile offline_access email aidu-api"
-DEFAULT_TIME_ZONE = "Europe/Brussels"
+DEFAULT_TIME_ZONE = "UTC"
 DEFAULT_SCAN_INTERVAL_MINUTES = 360
 DEFAULT_CRON_SCHEDULE = "0 2 * * *"
