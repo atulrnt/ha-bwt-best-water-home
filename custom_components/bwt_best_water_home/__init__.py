@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import inspect
+import logging
+import time
+from functools import partial
 from typing import TYPE_CHECKING
 
 from .api import BwtAuthError, BwtBestWaterHomeClient, ExecutorTransport
+from .auth_flow import exchange_bwt_refresh_token_sync, extract_token_data
 from .const import DEFAULT_CRON_SCHEDULE, DEFAULT_SCAN_INTERVAL_MINUTES, DEFAULT_TIME_ZONE, DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -73,13 +80,58 @@ class BwtRuntime:
 
     async def async_refresh_and_notify(self) -> None:
         async with self._refresh_lock:
+            refreshed = False
+            if self._token_expires_soon():
+                refreshed = await self._async_refresh_access_token()
             try:
                 await self.async_refresh()
             except BwtAuthError:
-                await self._async_start_reauth()
-                raise
+                if not refreshed and await self._async_refresh_access_token():
+                    await self.async_refresh()
+                else:
+                    await self._async_start_reauth()
+                    raise
             for listener in tuple(self._refresh_listeners):
                 listener()
+
+    def _token_expires_soon(self) -> bool:
+        expires_at = self.entry.data.get("expires_at")
+        if not isinstance(expires_at, (int, float)):
+            return False
+        return time.time() >= expires_at - 60
+
+    async def _async_refresh_access_token(self) -> bool:
+        from homeassistant.const import CONF_ACCESS_TOKEN
+
+        refresh_token = self.entry.data.get("refresh_token")
+        if not isinstance(refresh_token, str) or not refresh_token.strip():
+            return False
+        try:
+            token_response = self.hass.async_add_executor_job(
+                partial(exchange_bwt_refresh_token_sync, refresh_token=refresh_token.strip())
+            )
+            if inspect.isawaitable(token_response):
+                token_response = await token_response
+            token_data = extract_token_data(token_response)
+        except Exception:
+            _LOGGER.exception("BWT Best Water Home token refresh failed")
+            return False
+
+        updated_data = {**self.entry.data, **token_data, CONF_ACCESS_TOKEN: token_data[CONF_ACCESS_TOKEN]}
+        if "refresh_token" not in token_data:
+            updated_data["refresh_token"] = refresh_token
+        self.hass.config_entries.async_update_entry(self.entry, data=updated_data)
+        # Home Assistant updates entry.data synchronously today; lightweight
+        # test stubs may need an explicit assignment, while real HA entries may
+        # not allow setting data directly.
+        try:
+            self.entry.data = updated_data
+        except AttributeError:
+            pass
+        if hasattr(self.client, "access_token"):
+            self.client.access_token = updated_data[CONF_ACCESS_TOKEN]
+        self._reauth_started = False
+        return True
 
     async def _async_start_reauth(self) -> None:
         if self._reauth_started or config_entries is None:

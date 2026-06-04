@@ -164,7 +164,11 @@ class OptionsFlowCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         config_flow.BwtBestWaterHomeClient = Client
         config_flow.ExecutorTransport = lambda hass: object()
         config_flow.extract_authorization_code = lambda pasted, expected_state=None: "auth-code"
-        config_flow.exchange_bwt_authorization_code_sync = lambda *, code, code_verifier: {"access_token": "new-token"}
+        config_flow.exchange_bwt_authorization_code_sync = lambda *, code, code_verifier: {
+            "access_token": "new-token",
+            "refresh_token": "new-refresh-token",
+            "expires_in": 3600,
+        }
 
         flow = config_flow.BwtConfigFlow()
         flow.hass = Hass()
@@ -175,7 +179,15 @@ class OptionsFlowCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         result = await flow.async_step_reauth_confirm({"callback_url": "com.bwt.home.app://signin?code=auth-code&state=x"})
 
         self.assertEqual(result, {"type": "abort", "reason": "reauth_successful"})
-        self.assertEqual(updated, [(entry, {**entry.data, "access_token": "new-token"})])
+        self.assertEqual(len(updated), 1)
+        self.assertIs(updated[0][0], entry)
+        updated_data = updated[0][1]
+        self.assertEqual(updated_data["access_token"], "new-token")
+        self.assertEqual(updated_data["refresh_token"], "new-refresh-token")
+        self.assertEqual(updated_data["expires_in"], 3600)
+        self.assertIn("expires_at", updated_data)
+        self.assertEqual(updated_data["customer_id"], "customer-1")
+        self.assertEqual(updated_data["product_instance_id"], "product-1")
         self.assertEqual(reloaded, ["entry-1"])
 
     async def test_reconfigure_flow_updates_existing_entry_credentials_and_reload(self):
@@ -221,7 +233,11 @@ class OptionsFlowCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         config_flow.BwtBestWaterHomeClient = Client
         config_flow.ExecutorTransport = lambda hass: object()
         config_flow.extract_authorization_code = lambda pasted, expected_state=None: "auth-code"
-        config_flow.exchange_bwt_authorization_code_sync = lambda *, code, code_verifier: {"access_token": "new-token"}
+        config_flow.exchange_bwt_authorization_code_sync = lambda *, code, code_verifier: {
+            "access_token": "new-token",
+            "refresh_token": "new-refresh-token",
+            "expires_in": 3600,
+        }
 
         flow = config_flow.BwtConfigFlow()
         flow.hass = Hass()
@@ -232,16 +248,17 @@ class OptionsFlowCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         result = await flow.async_step_reconfigure({"callback_url": "com.bwt.home.app://signin?code=auth-code&state=x", "time_zone": "Europe/Amsterdam"})
 
         self.assertEqual(result, {"type": "abort", "reason": "reconfigure_successful"})
-        self.assertEqual(updated, [(
-            entry,
-            "New Softener",
-            {
-                "access_token": "new-token",
-                "customer_id": "new-customer",
-                "product_instance_id": "new-product",
-                "time_zone": "Europe/Amsterdam",
-            },
-        )])
+        self.assertEqual(len(updated), 1)
+        target_entry, title, data = updated[0]
+        self.assertIs(target_entry, entry)
+        self.assertEqual(title, "New Softener")
+        self.assertEqual(data["access_token"], "new-token")
+        self.assertEqual(data["refresh_token"], "new-refresh-token")
+        self.assertEqual(data["expires_in"], 3600)
+        self.assertIn("expires_at", data)
+        self.assertEqual(data["customer_id"], "new-customer")
+        self.assertEqual(data["product_instance_id"], "new-product")
+        self.assertEqual(data["time_zone"], "Europe/Amsterdam")
         self.assertEqual(reloaded, ["entry-1"])
 
 

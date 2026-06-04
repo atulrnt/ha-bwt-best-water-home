@@ -5,6 +5,7 @@ import hashlib
 import json
 import secrets
 import string
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib import error, parse, request
@@ -166,6 +167,24 @@ def build_token_exchange_form(
     return form
 
 
+def build_refresh_token_form(
+    *,
+    client_id: str,
+    refresh_token: str,
+    extra_params: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Build an OAuth refresh-token exchange form."""
+
+    form = {
+        "grant_type": "refresh_token",
+        "client_id": client_id,
+        "refresh_token": refresh_token,
+    }
+    if extra_params:
+        form.update(extra_params)
+    return form
+
+
 def exchange_token_sync(token_url: str, form: dict[str, str]) -> dict[str, Any]:
     """Exchange an OAuth form for a token response using stdlib urllib."""
 
@@ -203,6 +222,17 @@ def exchange_bwt_authorization_code_sync(*, code: str, code_verifier: str) -> di
     )
 
 
+def exchange_bwt_refresh_token_sync(*, refresh_token: str) -> dict[str, Any]:
+    """Exchange a BWT refresh token for fresh OAuth tokens."""
+
+    from .const import BWT_CLIENT_ID, BWT_TOKEN_URL
+
+    return exchange_token_sync(
+        BWT_TOKEN_URL,
+        build_refresh_token_form(client_id=BWT_CLIENT_ID, refresh_token=refresh_token),
+    )
+
+
 def extract_access_token(token_response: dict[str, Any]) -> str:
     """Extract the access token from an OAuth token response."""
 
@@ -210,3 +240,25 @@ def extract_access_token(token_response: dict[str, Any]) -> str:
     if not isinstance(token, str) or not token.strip():
         raise AuthRedirectError("BWT token response did not include an access token.")
     return token.strip()
+
+
+def extract_token_data(token_response: dict[str, Any]) -> dict[str, Any]:
+    """Extract config-entry-safe OAuth token metadata from a token response."""
+
+    data: dict[str, Any] = {"access_token": extract_access_token(token_response)}
+
+    refresh_token = token_response.get("refresh_token")
+    if isinstance(refresh_token, str) and refresh_token.strip():
+        data["refresh_token"] = refresh_token.strip()
+
+    expires_in = token_response.get("expires_in")
+    if isinstance(expires_in, (int, float)) and expires_in > 0:
+        data["expires_in"] = int(expires_in)
+        data["expires_at"] = int(time.time() + int(expires_in) - 60)
+
+    for key in ("token_type", "scope"):
+        value = token_response.get(key)
+        if isinstance(value, str) and value.strip():
+            data[key] = value.strip()
+
+    return data

@@ -82,6 +82,20 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(BwtAuthError):
             await client.get_customer_id()
 
+    def test_http_500_authentication_body_is_auth_error(self):
+        from custom_components.bwt_best_water_home.api import _is_auth_error_response
+
+        parsed = {
+            "type": "System.Exception",
+            "title": "Error while authenticating request.",
+            "status": 500,
+            "detail": "Error while authenticating request.",
+            "NyotaRequestTraceId": "trace-id",
+        }
+
+        self.assertTrue(_is_auth_error_response(500, parsed))
+        self.assertFalse(_is_auth_error_response(500, {"title": "Generic server error"}))
+
 
 class AccumulatorTests(unittest.TestCase):
     def test_accumulator_adds_only_closed_buckets_once_and_converts_to_m3(self):
