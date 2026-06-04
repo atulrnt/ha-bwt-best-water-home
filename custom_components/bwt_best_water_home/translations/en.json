@@ -3,35 +3,32 @@
     "step": {
       "user": {
         "title": "BWT Best Water Home",
-        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.\n\nThe access token field is kept as a fallback for manually generated tokens.",
+        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.",
         "data": {
           "callback_url": "Redirected URL or authorization code",
-          "access_token": "Access token fallback",
           "time_zone": "IANA time zone"
         }
       },
       "reauth_confirm": {
         "title": "Reauthenticate BWT Best Water Home",
-        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.\n\nThe access token field is kept as a fallback for manually generated tokens.",
+        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.",
         "data": {
-          "callback_url": "Redirected URL or authorization code",
-          "access_token": "Access token fallback"
+          "callback_url": "Redirected URL or authorization code"
         }
       },
       "reconfigure": {
         "title": "Reconfigure BWT Best Water Home",
-        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.\n\nThe access token field is kept as a fallback for manually generated tokens.",
+        "description": "Open the BWT login link in a normal browser, complete login, then paste the final redirected URL or authorization code below.\n\n[BWT login]({auth_url})\n\nAfter login the browser may show an error because the redirect targets the BWT mobile app URI (`{redirect_uri}`). That is expected; copy the final URL from the address bar if it contains `code=`.",
         "data": {
           "callback_url": "Redirected URL or authorization code",
-          "access_token": "Access token fallback",
           "time_zone": "IANA time zone"
         }
       }
     },
     "error": {
-      "auth": "BWT rejected the token. Try the login link again or paste a fresh access token.",
+      "auth": "BWT rejected the token. Try the login link again.",
       "cannot_connect": "Could not connect to the BWT API.",
-      "missing_auth": "Open the BWT login link and paste the redirected URL/code, or paste an access token.",
+      "missing_auth": "Open the BWT login link and paste the redirected URL/code.",
       "oauth": "Could not use the pasted redirected URL/code. Make sure it is from this setup attempt and contains code=.",
       "no_products": "No BWT products were returned for this account."
     },

@@ -121,6 +121,31 @@ class OptionsFlowCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["type"], "form")
         self.assertEqual(result["errors"], {"cron_schedule": "invalid_cron"})
 
+    async def test_auth_forms_do_not_expose_access_token_fallback(self):
+        config_flow = importlib.import_module("custom_components.bwt_best_water_home.config_flow")
+        entry = types.SimpleNamespace(entry_id="entry-1", data={}, options={})
+
+        class ConfigEntries:
+            def async_get_entry(self, entry_id):
+                self_outer.assertEqual(entry_id, "entry-1")
+                return entry
+
+        class Hass:
+            config_entries = ConfigEntries()
+
+        self_outer = self
+        flow = config_flow.BwtConfigFlow()
+        flow.hass = Hass()
+        flow.context = {"entry_id": "entry-1"}
+
+        user_form = await flow.async_step_user()
+        reauth_form = await flow.async_step_reauth(entry.data)
+        reconfigure_form = await flow.async_step_reconfigure()
+
+        self.assertNotIn("access_token", user_form["data_schema"])
+        self.assertNotIn("access_token", reauth_form["data_schema"])
+        self.assertNotIn("access_token", reconfigure_form["data_schema"])
+
     async def test_reauth_flow_updates_existing_entry_token_and_reloads(self):
         config_flow = importlib.import_module("custom_components.bwt_best_water_home.config_flow")
         entry = types.SimpleNamespace(

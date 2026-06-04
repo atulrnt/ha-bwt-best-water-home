@@ -86,7 +86,6 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({
                 vol.Optional("callback_url"): str,
-                vol.Optional(CONF_ACCESS_TOKEN): str,
                 vol.Optional("time_zone", default=DEFAULT_TIME_ZONE): str,
             }),
             errors=errors,
@@ -151,7 +150,6 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _show_auth_form(self, step_id, errors, *, include_time_zone=False, default_time_zone=DEFAULT_TIME_ZONE):
         schema = {
             vol.Optional("callback_url"): str,
-            vol.Optional(CONF_ACCESS_TOKEN): str,
         }
         if include_time_zone:
             schema[vol.Optional("time_zone", default=default_time_zone)] = str
@@ -166,9 +164,6 @@ class BwtConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _async_token_data_from_auth_input(self, user_input, errors) -> dict:
-        token = (user_input.get(CONF_ACCESS_TOKEN) or "").strip()
-        if token:
-            return {CONF_ACCESS_TOKEN: token}
         callback_url = (user_input.get("callback_url") or "").strip()
         if not callback_url:
             errors["base"] = "missing_auth"
