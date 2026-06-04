@@ -107,8 +107,5 @@ def next_cron_time(cron: str, now: dt.datetime) -> dt.datetime:
 
 
 def validate_cron_string(cron: str) -> str:
-    schedule = parse_cron_string(cron)
-    if len(schedule.minutes) * len(schedule.hours) > 1:
-        raise ValueError("BWT cron schedule must run at most once per day")
     next_cron_time(cron, dt.datetime.now(dt.UTC))
     return cron

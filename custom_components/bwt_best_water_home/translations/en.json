@@ -52,7 +52,7 @@
       }
     },
     "error": {
-      "invalid_cron": "Cron schedule must be a valid five-field cron expression and run at most once per day."
+      "invalid_cron": "Cron schedule must be a valid five-field cron expression."
     }
   }
 }

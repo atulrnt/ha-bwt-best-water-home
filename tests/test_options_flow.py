@@ -116,7 +116,7 @@ class OptionsFlowCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         entry = types.SimpleNamespace(options={}, data={})
         options_flow = config_flow.BwtConfigFlow.async_get_options_flow(entry)
 
-        result = await options_flow.async_step_init({"time_zone": "Europe/Brussels", "cron_schedule": "*/5 * * * *"})
+        result = await options_flow.async_step_init({"time_zone": "Europe/Brussels", "cron_schedule": "not cron"})
 
         self.assertEqual(result["type"], "form")
         self.assertEqual(result["errors"], {"cron_schedule": "invalid_cron"})
