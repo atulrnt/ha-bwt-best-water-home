@@ -23,9 +23,11 @@ class CronScheduleTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_cron_string("bad cron")
 
-    def test_validate_rejects_more_than_once_per_day(self):
-        with self.assertRaises(ValueError):
-            validate_cron_string("0 1,2 * * *")
+    def test_validate_accepts_step_hours(self):
+        self.assertEqual(validate_cron_string("0 */6 * * *"), "0 */6 * * *")
+
+    def test_validate_accepts_multiple_daily_runs(self):
+        self.assertEqual(validate_cron_string("0 1,2 * * *"), "0 1,2 * * *")
 
 
 if __name__ == "__main__":
