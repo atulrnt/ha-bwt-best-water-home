@@ -5,6 +5,7 @@ import datetime as dt
 import json
 from typing import Any, Protocol
 from urllib import error, request
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .const import APP_VERSION, DEFAULT_TIME_ZONE, GRAPHQL_URL
 
@@ -28,6 +29,7 @@ class BwtProduct:
     product_variant_name: str | None
     shadow_type: str | None
     is_online: bool | None
+    time_zone: str | None = None
     last_data_received: str | None = None
     wifi_rssi_dbm: int | None = None
 
@@ -159,6 +161,7 @@ class BwtBestWaterHomeClient:
           userProfile {
             myProducts { items {
               productInstanceId customProductName productVariantName isOnlineOperation
+              customerInformation { site { timeZone { timeZoneId } } }
               productShadow {
                 __typename
                 ... on SkylineShadow { lastTimeDataReceived wifiRssi_dbm }
@@ -172,12 +175,16 @@ class BwtBestWaterHomeClient:
         products: list[BwtProduct] = []
         for item in items:
             shadow = item.get("productShadow") or {}
+            customer_information = item.get("customerInformation") or {}
+            site = customer_information.get("site") or {}
+            time_zone = (site.get("timeZone") or {}).get("timeZoneId")
             products.append(BwtProduct(
                 product_instance_id=item["productInstanceId"],
                 name=item.get("customProductName") or item.get("productVariantName") or item["productInstanceId"],
                 product_variant_name=item.get("productVariantName"),
                 shadow_type=shadow.get("__typename"),
                 is_online=item.get("isOnlineOperation"),
+                time_zone=time_zone,
                 last_data_received=shadow.get("lastTimeDataReceived"),
                 wifi_rssi_dbm=shadow.get("wifiRssi_dbm"),
             ))
@@ -188,7 +195,7 @@ class BwtBestWaterHomeClient:
         customer_id: str,
         product: BwtProduct,
         *,
-        days: int = 14,
+        days: int = 7,
         time_zone: str = DEFAULT_TIME_ZONE,
         resolution: str = "Day",
     ) -> BwtDeviceStats:
@@ -197,14 +204,14 @@ class BwtBestWaterHomeClient:
                 customer_id,
                 product.product_instance_id,
                 days=days,
-                time_zone=time_zone,
+                time_zone="UTC",
                 resolution=resolution,
             )
         return await self.get_skyline_stats(
             customer_id,
             product.product_instance_id,
             days=days,
-            time_zone=time_zone,
+            time_zone=getattr(product, "time_zone", None) or time_zone,
             resolution=resolution,
         )
 
@@ -213,7 +220,7 @@ class BwtBestWaterHomeClient:
         customer_id: str,
         product_instance_id: str,
         *,
-        days: int = 14,
+        days: int = 7,
         time_zone: str = DEFAULT_TIME_ZONE,
         resolution: str = "Day",
     ) -> BwtDeviceStats:
@@ -241,7 +248,7 @@ class BwtBestWaterHomeClient:
         customer_id: str,
         product_instance_id: str,
         *,
-        days: int = 14,
+        days: int = 7,
         time_zone: str = DEFAULT_TIME_ZONE,
         resolution: str = "Day",
     ) -> BwtDeviceStats:
@@ -260,7 +267,7 @@ class BwtBestWaterHomeClient:
             customer_id,
             product_instance_id,
             days=days,
-            time_zone=time_zone,
+            time_zone="UTC",
             resolution=resolution,
         )
 
@@ -274,12 +281,12 @@ class BwtBestWaterHomeClient:
         time_zone: str,
         resolution: str,
     ) -> BwtDeviceStats:
-        now = dt.datetime.now(dt.UTC)
+        from_date, until_date = _bucketed_stats_window(days=days, time_zone=time_zone)
         data = await self._graphql(query, {
             "productInstanceId": product_instance_id,
             "format": resolution,
-            "fromDate": (now - dt.timedelta(days=days)).isoformat(),
-            "untilDate": now.isoformat(),
+            "fromDate": _format_graphql_datetime(from_date),
+            "untilDate": _format_graphql_datetime(until_date),
             "ianaTimeZone": time_zone,
         }, customer_id=customer_id)
         stats = data.get("data") or {}
@@ -301,6 +308,37 @@ def _parse_points(points: list[dict[str, Any]]) -> list[BwtDataPoint]:
             raw_date = raw_date[:-1] + "+00:00"
         parsed.append(BwtDataPoint(date=dt.datetime.fromisoformat(raw_date), value=float(point["value"])))
     return parsed
+
+
+def _bucketed_stats_window(
+    *,
+    days: int = 7,
+    time_zone: str = DEFAULT_TIME_ZONE,
+    now: dt.datetime | None = None,
+) -> tuple[dt.datetime, dt.datetime]:
+    """Return the app-style closed daily statistics window."""
+
+    zone = _zoneinfo_or_utc(time_zone)
+    current = now or dt.datetime.now(dt.UTC)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=dt.UTC)
+    local_now = current.astimezone(zone)
+    from_local = (local_now - dt.timedelta(days=days)).replace(hour=0, minute=0, second=0, microsecond=0)
+    until_local = (local_now - dt.timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999000)
+    return from_local.astimezone(dt.UTC), until_local.astimezone(dt.UTC)
+
+
+def _zoneinfo_or_utc(time_zone: str) -> dt.tzinfo:
+    if not time_zone:
+        return dt.UTC
+    try:
+        return ZoneInfo(time_zone)
+    except (ZoneInfoNotFoundError, ValueError):
+        return dt.UTC
+
+
+def _format_graphql_datetime(value: dt.datetime) -> str:
+    return value.astimezone(dt.UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def _normalize_access_token(access_token: str) -> str:

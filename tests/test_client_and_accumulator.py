@@ -1,7 +1,12 @@
 import datetime as dt
 import unittest
 
-from custom_components.bwt_best_water_home.api import BwtAuthError, BwtBestWaterHomeClient
+from custom_components.bwt_best_water_home.api import (
+    BwtAuthError,
+    BwtBestWaterHomeClient,
+    _bucketed_stats_window,
+    _format_graphql_datetime,
+)
 from custom_components.bwt_best_water_home.accumulator import WaterAccumulator
 
 
@@ -28,6 +33,7 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
                     "customProductName": "My Perla Optimum",
                     "productVariantName": "myperla",
                     "isOnlineOperation": True,
+                    "customerInformation": {"site": {"timeZone": {"timeZoneId": "Europe/Vienna"}}},
                     "productShadow": {"__typename": "SkylineShadow", "lastTimeDataReceived": "2026-05-28T09:42:20.691Z", "wifiRssi_dbm": -70},
                 }
             ]}}}},
@@ -37,17 +43,19 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
 
         customer_id = await client.get_customer_id()
         products = await client.get_products(customer_id)
-        stats = await client.get_device_stats(customer_id, products[0], days=14)
+        stats = await client.get_device_stats(customer_id, products[0])
 
         self.assertEqual(customer_id, "cust-1")
         self.assertEqual(products[0].product_instance_id, "pid-1")
         self.assertEqual(products[0].name, "My Perla Optimum")
         self.assertEqual(products[0].shadow_type, "SkylineShadow")
+        self.assertEqual(products[0].time_zone, "Europe/Vienna")
         self.assertEqual(stats.water_unit, "Litre")
         self.assertEqual(stats.water_points[0].value, 41)
         self.assertEqual(transport.calls[0][2]["authorization"], "Bearer access-token")
         self.assertEqual(transport.calls[1][2]["ctx-current-customer-id"], "cust-1")
         self.assertEqual(transport.calls[2][1]["variables"]["format"], "Day")
+        self.assertEqual(transport.calls[2][1]["variables"]["ianaTimeZone"], "Europe/Vienna")
 
     async def test_client_uses_app_perla_statistics_for_perla_shadow(self):
         transport = FakeTransport([
@@ -56,7 +64,7 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
         client = BwtBestWaterHomeClient("access-token", transport=transport)
         product = type("Product", (), {"product_instance_id": "perla-1", "shadow_type": "PerlaShadow"})()
 
-        stats = await client.get_device_stats("cust-1", product, days=14, time_zone="UTC")
+        stats = await client.get_device_stats("cust-1", product, time_zone="Europe/Brussels")
 
         payload = transport.calls[0][1]
         query = payload["query"]
@@ -95,6 +103,22 @@ class BwtClientTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(_is_auth_error_response(500, parsed))
         self.assertFalse(_is_auth_error_response(500, {"title": "Generic server error"}))
+
+    def test_stats_window_matches_app_closed_daily_range(self):
+        now = dt.datetime(2026, 6, 4, 12, 34, 56, tzinfo=dt.UTC)
+
+        from_date, until_date = _bucketed_stats_window(days=7, time_zone="Europe/Brussels", now=now)
+
+        self.assertEqual(_format_graphql_datetime(from_date), "2026-05-27T22:00:00.000Z")
+        self.assertEqual(_format_graphql_datetime(until_date), "2026-06-03T21:59:59.999Z")
+
+    def test_perla_app_window_uses_utc(self):
+        now = dt.datetime(2026, 6, 4, 12, 34, 56, tzinfo=dt.UTC)
+
+        from_date, until_date = _bucketed_stats_window(days=7, time_zone="UTC", now=now)
+
+        self.assertEqual(_format_graphql_datetime(from_date), "2026-05-28T00:00:00.000Z")
+        self.assertEqual(_format_graphql_datetime(until_date), "2026-06-03T23:59:59.999Z")
 
 
 class AccumulatorTests(unittest.TestCase):
