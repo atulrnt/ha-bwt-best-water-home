@@ -4,6 +4,8 @@ HACS custom integration for BWT Best Water Home / AIDU-backed water softeners su
 
 This is an unofficial interoperability project. It does not include BWT application code or BWT-owned brand assets.
 
+It has been tested in Belgium with a My Perla Optimum water softener, there is no guarantees this integration works in other countries and/or with different water softeners.
+
 ## Disclaimer
 
 This project is not affiliated with, endorsed by, sponsored by, or supported by BWT. BWT and related product names are trademarks of their respective owners. Use this integration at your own risk; cloud APIs may change, rate-limit, or stop working at any time.
