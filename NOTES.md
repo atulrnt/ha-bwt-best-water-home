@@ -1,13 +1,11 @@
-# BWT Best Water Home HACS MVP
+# BWT Best Water Home HACS Notes
 
-This is a HACS-ready custom integration scaffold generated from confirmed BWT Best Water Home / AIDU GraphQL behavior.
+This is a HACS-ready custom integration using confirmed BWT Best Water Home / AIDU GraphQL behavior.
 
-## Not production-ready yet
+## Publication checklist
 
 Before publishing broadly:
 
-- Replace manual access-token entry with a real OAuth/PKCE flow or refresh-token handling.
-- Test inside a Home Assistant dev container/core install.
 - Add config-flow tests using Home Assistant's pytest fixtures.
 - Decide how to handle bucket corrections/backfills from BWT.
 

@@ -1,6 +1,6 @@
 # BWT Best Water Home for Home Assistant
 
-Experimental HACS custom integration for BWT Best Water Home / AIDU-backed water softeners such as **BWT My Perla Optimum**.
+HACS custom integration for BWT Best Water Home / AIDU-backed water softeners such as **BWT My Perla Optimum**.
 
 This is an unofficial interoperability project. It does not include BWT application code or BWT-owned brand assets.
 
@@ -10,7 +10,7 @@ This project is not affiliated with, endorsed by, sponsored by, or supported by 
 
 ## Status
 
-MVP / proof of concept using the BWT Best Water Home / AIDU cloud backend:
+Tested and working integration using the BWT Best Water Home / AIDU cloud backend:
 
 - `https://api.aidu.solutions/api/graphql/homeapp/`
 - auth authority `https://account.bwt-group.com`
