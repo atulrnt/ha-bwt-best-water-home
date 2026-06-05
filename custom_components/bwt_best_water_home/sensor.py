@@ -102,7 +102,7 @@ class BwtWaterTotalSensor(BwtBaseSensor, RestoreEntity):
 
 
 class BwtDailyWaterSensor(BwtBaseSensor):
-    _attr_name = "Daily water"
+    _attr_name = "Daily water consumption"
     _attr_device_class = SensorDeviceClass.WATER
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfVolume.LITERS
@@ -119,7 +119,7 @@ class BwtDailyWaterSensor(BwtBaseSensor):
 
 
 class BwtDailySaltSensor(BwtBaseSensor):
-    _attr_name = "Daily salt/resource"
+    _attr_name = "Daily salt consumption"
     _attr_device_class = SensorDeviceClass.WEIGHT
     _attr_state_class = SensorStateClass.MEASUREMENT
 

@@ -50,6 +50,7 @@ class SensorMetadataTests(unittest.TestCase):
             TOTAL_INCREASING="total_increasing",
         ))
         setattr(config_entries, "ConfigEntry", object)
+        setattr(const, "Platform", types.SimpleNamespace(SENSOR="sensor", BUTTON="button"))
         setattr(const, "UnitOfVolume", types.SimpleNamespace(CUBIC_METERS="m³", LITERS="L"))
         setattr(const, "UnitOfMass", types.SimpleNamespace(KILOGRAMS="kg", GRAMS="g"))
         setattr(core, "HomeAssistant", object)
@@ -96,6 +97,12 @@ class SensorMetadataTests(unittest.TestCase):
 
         self.assertEqual(sensor_module.BwtDailyWaterSensor._attr_device_class, "water")
         self.assertEqual(sensor_module.BwtDailyWaterSensor._attr_state_class, "total")
+
+    def test_daily_consumption_sensor_names_are_clear_and_coherent(self):
+        sensor_module = importlib.import_module("custom_components.bwt_best_water_home.sensor")
+
+        self.assertEqual(sensor_module.BwtDailyWaterSensor._attr_name, "Daily water consumption")
+        self.assertEqual(sensor_module.BwtDailySaltSensor._attr_name, "Daily salt consumption")
 
 
 if __name__ == "__main__":
